@@ -1,6 +1,7 @@
-# Monitor Symbolization
+# PrefixGuard
 
-Anonymous review artifact for monitor-aware event symbolization experiments.
+PrefixGuard is an anonymous review artifact for monitor-aware event
+symbolization experiments.
 
 This repository contains the public code path needed to inspect the trajectory
 schema, preprocess the real benchmark artifacts, train and evaluate the
