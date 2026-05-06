@@ -28,6 +28,26 @@ The anonymous branch preserves the package code, toy data, core import scripts,
 canonical preprocessing scripts, and the real-data experiment manifest. The raw
 real datasets themselves are not redistributed.
 
+Download tooling is part of the project dependencies:
+
+```bash
+uv sync --locked
+python -m gdown --help
+hf download --help
+```
+
+Direct download verification was last checked on 2026-05-06:
+
+- WebArena execution trace folders are linked from the official WebArena
+  resources file and can be downloaded with `gdown --folder`.
+- `HuggingFaceH4/tau2-bench-data` can be downloaded from Hugging Face at
+  revision `60e37c7a19672769a6034c45a5c8b36e7cd3768b`, but it contains
+  benchmark/domain data only. It does not contain the run-result trajectory
+  JSON files consumed by this repository's tau2 importer.
+- `benchflow/skillsbench-trajectories-apr2026` can be downloaded from Hugging
+  Face at revision `841dfc7d248bb0b1cd35fa65bb993a1eba0d1d2f`. Its public
+  ACP trajectory format is supported by this repository's SkillsBench importer.
+
 To verify a reconstructed artifact:
 
 ```bash
@@ -51,15 +71,34 @@ Source:
 
 - Project page: `https://webarena.dev/`
 - Code and benchmark metadata: `https://github.com/web-arena-x/webarena`
+- Official resource manifest:
+  `https://github.com/web-arena-x/webarena/blob/main/resources/README.md`
 - Execution trace releases used by the full pipeline are the WebArena v1/v2
   trace archives staged under `data/external/webarena/`.
 
 Download and staging:
 
-Download the WebArena execution trajectory archives from the official WebArena
-resources linked by the project repository, then place the zip files at the
-paths below. The importer expects these filenames and does not download them
-automatically.
+The official WebArena resources file links the v1 and v2 execution trace
+Google Drive folders. Download them directly with `gdown`:
+
+```bash
+mkdir -p data/external/webarena
+
+curl -L \
+  https://raw.githubusercontent.com/web-arena-x/webarena/dce04686a56253aefba7b18a4fa0937cf1dc987b/config_files/test.raw.json \
+  -o data/external/webarena/test.raw.json
+
+python -m gdown --folder --remaining-ok --continue \
+  "https://drive.google.com/drive/folders/18Oww0fAgwhuSjSzxUNgzBUlC6M9IZZB2?usp=sharing" \
+  -O data/external/webarena/execution_v1/072023_release_v1/
+
+python -m gdown --folder --remaining-ok --continue \
+  "https://drive.google.com/drive/folders/1H4wkzDkY2ufiC63DISMXllri0j-ipWcs?usp=sharing" \
+  -O data/external/webarena/execution_v2/112023_release_v2/
+```
+
+The importer expects the downloaded zip filenames below and does not contact
+Google Drive itself.
 
 Expected raw inputs:
 
@@ -100,15 +139,43 @@ sha256: 756ac7d4e9b5797e69bea90e5ffd27ca85ebd1752b5a74f566eb050e4dcf3819
 Source:
 
 - Code and benchmark definitions: `https://github.com/sierra-research/tau2-bench`
+- Direct-download benchmark/domain data:
+  `https://huggingface.co/datasets/HuggingFaceH4/tau2-bench-data`
 - The reproduction tree stages tau2-bench run result JSON files under
   `data/external/tau2_bench/results/final/`.
 
 Download and staging:
 
-Clone or download the official tau2-bench repository for benchmark definitions.
-Generate or obtain the run result JSON files for the evaluated agents, then
-place them under the path below. The importer reads local JSON files and does
-not contact the upstream repository.
+The official benchmark/domain data can be downloaded directly:
+
+```bash
+hf download HuggingFaceH4/tau2-bench-data \
+  --repo-type dataset \
+  --revision 60e37c7a19672769a6034c45a5c8b36e7cd3768b \
+  --local-dir data/external/tau2_bench/tau2_data
+```
+
+This is not sufficient for the main monitor experiment. The tau2 importer
+consumes completed tau2 evaluation outputs, not only benchmark definitions. The
+official tau2 documentation states that text evaluations write monolithic
+`results.json` files under `data/simulations/<run_name>/`. Generate or obtain
+those run-result JSON files for the evaluated agents, then place or symlink
+them under the path below:
+
+```bash
+mkdir -p data/external/tau2_bench/results/final
+cp /path/to/tau2-bench/data/simulations/<run_name>/results.json \
+  data/external/tau2_bench/results/final/<agent>_<domain>_<policy>_<user>.json
+```
+
+No public static download was verified for the exact
+`data/external/tau2_bench/results/final/*.json` bundle that produces the
+checksum below. To make the tau2 main experiment directly reproducible from
+downloads alone, this bundle must be published as an anonymous artifact, or the
+anonymous package must include the exact tau2 run commands, model/API settings,
+seeds, and generated `results.json` files. Substituting third-party tau2
+trajectory datasets changes the scientific input and must be treated as a new
+dataset/checksum.
 
 Expected raw inputs:
 
@@ -182,18 +249,37 @@ sha256: bdb787c4daff4f76719d509da59865170940e98f027c0fa450c0a6f00aab0058
 
 Source:
 
-- The full experiments used a locally mirrored SkillsBench trajectory corpus
-  staged under `data/external/skillsbench/skillsbench-trajectories/`.
-- The local mirror contains trial directories with `result.json`,
-  `config.json`, and trace payloads. A clearly redistributable public upstream
-  was not verified from the repository metadata, so the raw traces are not
-  included in this anonymous branch.
+- Public trajectory snapshot:
+  `https://huggingface.co/datasets/benchflow/skillsbench-trajectories-apr2026`
+- Code and task definitions: `https://github.com/benchflow-ai/skillsbench`
+- The full experiments used a SkillsBench trajectory corpus staged under
+  `data/external/skillsbench/skillsbench-trajectories/`.
+- Trial directories contain `result.json`, `config.json`, and trace payloads.
+  The public Hugging Face snapshot uses `trajectory/acp_trajectory.jsonl`, which
+  is supported by `scripts/import_skillsbench_traces.py`.
+
+Download and staging:
+
+```bash
+hf download benchflow/skillsbench-trajectories-apr2026 \
+  --repo-type dataset \
+  --revision 841dfc7d248bb0b1cd35fa65bb993a1eba0d1d2f \
+  --local-dir data/external/skillsbench/skillsbench-trajectories \
+  --max-workers 2
+```
+
+The dataset contains many small files; using a low `--max-workers` value avoids
+Hugging Face HEAD-request rate limiting observed during full dry-run checks.
+The public dataset card reports the layout below and a total size of about
+181 MB. A real downloaded sample with `trajectory/acp_trajectory.jsonl` was
+successfully imported by this repository's importer.
 
 Expected raw inputs:
 
 ```text
 data/external/skillsbench/skillsbench-trajectories/**/result.json
 data/external/skillsbench/skillsbench-trajectories/**/config.json
+data/external/skillsbench/skillsbench-trajectories/**/trajectory/acp_trajectory.jsonl
 ```
 
 Import command:
@@ -237,6 +323,12 @@ data/interim/skillsbench/source_raw/full_repo_main_traces_source_raw_split_manif
 rows: 10951
 sha256: a08b8dccded2fb65f0bb822fad0c24c360fdc0bc60358f3367a66be1cfdd5547
 ```
+
+The checksum above is for the full corpus used by the authors' experiments. If
+the public Hugging Face snapshot is used and this checksum does not match,
+record the Hugging Face revision, row count, and new checksum before comparing
+results; do not silently treat a different SkillsBench snapshot as the same
+main-experiment input.
 
 ## Explicitly Excluded Adapters
 

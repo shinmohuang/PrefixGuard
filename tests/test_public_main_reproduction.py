@@ -66,3 +66,79 @@ def test_verify_dataset_artifacts_has_expected_checksums() -> None:
     assert expected["tau2"].rows == 10832
     assert expected["terminalbench"].rows == 34397
     assert expected["skillsbench"].rows == 10951
+
+
+def test_skillsbench_importer_reads_public_acp_trace(tmp_path: Path) -> None:
+    module = _load_script_module("import_skillsbench_traces.py")
+    trial_dir = (
+        tmp_path
+        / "jobs"
+        / "opus47-with-skills-t1"
+        / "2026-04-22__01-27-25"
+        / "toy-task__12345678"
+    )
+    (trial_dir / "trajectory").mkdir(parents=True)
+    (trial_dir / "result.json").write_text(
+        json.dumps(
+            {
+                "task_name": "toy-task",
+                "trial_name": "toy-task__12345678",
+                "rewards": {"reward": 1.0},
+                "agent": "claude-agent-acp",
+                "agent_name": "@zed-industries/claude-agent-acp",
+                "model": "claude-opus-4-7",
+                "error": None,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (trial_dir / "config.json").write_text(
+        json.dumps(
+            {
+                "task_path": "/workspace/repos/skillsbench/tasks/toy-task",
+                "agent": "claude-agent-acp",
+                "model": "claude-opus-4-7",
+                "environment": "daytona",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (trial_dir / "trajectory" / "acp_trajectory.jsonl").write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "type": "tool_call",
+                        "tool_call_id": "call-1",
+                        "kind": "execute",
+                        "title": "Terminal",
+                        "status": "completed",
+                        "content": [
+                            {"type": "content", "content": {"type": "text", "text": "Run checker"}},
+                            {"type": "content", "content": {"type": "text", "text": "```console\nok\n```"}},
+                        ],
+                    }
+                ),
+                json.dumps({"type": "agent_message", "text": "Done"}),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    record = module._parse_trial(
+        trial_dir,
+        split="raw",
+        history_window=4,
+        max_action_chars=1200,
+        max_result_chars=2400,
+        max_context_chars=4000,
+    )
+
+    assert record["final_success"] is True
+    assert record["metadata"]["trace_format"] == "acp_trajectory_jsonl"
+    assert record["metadata"]["raw_reward"] == 1.0
+    assert record["metadata"]["condition_dir"] == "opus47-with-skills-t1"
+    assert [step["tool_name"] for step in record["steps"]] == ["bash", "respond"]
+    assert record["steps"][-1]["status"] == "success"
+    assert all(step["source_raw_text"] for step in record["steps"])

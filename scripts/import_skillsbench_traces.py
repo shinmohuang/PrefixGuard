@@ -250,6 +250,29 @@ def _source_raw_protocol_summary() -> dict[str, Any]:
     }
 
 
+def _result_rewards(result_payload: dict[str, Any]) -> dict[str, Any]:
+    verifier_result = _as_dict(result_payload.get("verifier_result"))
+    verifier_rewards = _as_dict(verifier_result.get("rewards"))
+    if verifier_rewards:
+        return verifier_rewards
+    return _as_dict(result_payload.get("rewards"))
+
+
+def _reward_label_origin(result_payload: dict[str, Any]) -> str:
+    if _as_dict(result_payload.get("rewards")):
+        return "result.rewards.reward"
+    return "result.verifier_result.rewards.reward"
+
+
+def _condition_dir_for_trial(trial_dir: Path) -> str:
+    parts = trial_dir.parts
+    if "jobs" in parts:
+        jobs_index = parts.index("jobs")
+        if jobs_index + 1 < len(parts):
+            return parts[jobs_index + 1]
+    return trial_dir.parent.name
+
+
 
 def _task_id_from_payload(result_payload: dict[str, Any], config_payload: dict[str, Any]) -> str:
     result_task_id = _as_dict(result_payload.get("task_id"))
@@ -263,6 +286,7 @@ def _task_id_from_payload(result_payload: dict[str, Any], config_payload: dict[s
         result_task_id.get("path"),
         result_config_task.get("path"),
         config_task.get("path"),
+        config_payload.get("task_path"),
     )
     if task_path:
         return f"skillsbench::{Path(task_path).name}"
@@ -278,7 +302,7 @@ def _trajectory_id_for_trial(
     result_payload: dict[str, Any],
     config_payload: dict[str, Any],
 ) -> str:
-    condition_dir = trial_dir.parent.name
+    condition_dir = _condition_dir_for_trial(trial_dir)
     trial_name = _first_non_empty(result_payload.get("trial_name"), config_payload.get("trial_name"), trial_dir.name)
     return f"skillsbench::{condition_dir}::{trial_name}"
 
@@ -291,13 +315,12 @@ def _failure_bucket(
 ) -> str:
     if final_success:
         return "NONE"
-    if result_payload.get("exception_info") not in (None, "", {}):
+    if result_payload.get("exception_info") not in (None, "", {}) or result_payload.get("error") not in (None, "", {}):
         return "SKILLSBENCH_AGENT_EXCEPTION"
     exception_txt = trial_dir / "exception.txt"
     if exception_txt.exists() and exception_txt.read_text(encoding="utf-8", errors="replace").strip():
         return "SKILLSBENCH_AGENT_EXCEPTION"
-    verifier_result = _as_dict(result_payload.get("verifier_result"))
-    rewards = _as_dict(verifier_result.get("rewards"))
+    rewards = _result_rewards(result_payload)
     raw_reward = float(rewards.get("reward", 0.0) or 0.0)
     if raw_reward <= 0.0:
         return "SKILLSBENCH_VERIFIER_FAIL"
@@ -313,21 +336,28 @@ def _build_common_metadata(
     trace_format: str,
     raw_reward: float,
 ) -> dict[str, Any]:
-    agent_config = dict(config_payload.get("agent", {}))
-    agent_info = dict(result_payload.get("agent_info", {}))
-    task_config = dict(config_payload.get("task", {}))
-    verifier_result = _as_dict(result_payload.get("verifier_result"))
-    rewards = _as_dict(verifier_result.get("rewards"))
+    agent_config = _as_dict(config_payload.get("agent"))
+    agent_info = _as_dict(result_payload.get("agent_info"))
+    task_config = _as_dict(config_payload.get("task"))
+    environment_config = _as_dict(config_payload.get("environment"))
+    agent_env = _as_dict(config_payload.get("agent_env"))
+    agent_kwargs = _as_dict(agent_config.get("kwargs"))
+    rewards = _result_rewards(result_payload)
     result_task_id = _as_dict(result_payload.get("task_id"))
+    environment_value = config_payload.get("environment")
+    environment_type = _first_non_empty(
+        environment_config.get("type"),
+        environment_value if isinstance(environment_value, str) else None,
+    )
     return {
         "dataset": "SkillsBench",
         "adapter_origin": "skillsbench_main_trace",
-        "label_origin": "result.verifier_result.rewards.reward",
+        "label_origin": _reward_label_origin(result_payload),
         "trace_format": trace_format,
         "source_trace": str(trace_path),
         "source_result": str(trial_dir / "result.json"),
         "source_config": str(trial_dir / "config.json"),
-        "condition_dir": trial_dir.parent.name,
+        "condition_dir": _condition_dir_for_trial(trial_dir),
         "trial_dir": str(trial_dir),
         "trial_name": _first_non_empty(result_payload.get("trial_name"), config_payload.get("trial_name"), trial_dir.name),
         "task_name": _first_non_empty(result_payload.get("task_name")),
@@ -335,15 +365,28 @@ def _build_common_metadata(
         "task_path": _first_non_empty(
             result_task_id.get("path"),
             task_config.get("path"),
+            config_payload.get("task_path"),
         ),
-        "agent_name": _first_non_empty(agent_info.get("name"), agent_config.get("name")),
-        "agent_model_name": _first_non_empty(agent_config.get("model_name")),
-        "agent_version": _first_non_empty(agent_info.get("version"), agent_config.get("kwargs", {}).get("version")),
-        "environment_type": _first_non_empty(config_payload.get("environment", {}).get("type")),
+        "agent_name": _first_non_empty(
+            agent_info.get("name"),
+            agent_config.get("name"),
+            result_payload.get("agent_name"),
+            result_payload.get("agent"),
+            config_payload.get("agent") if isinstance(config_payload.get("agent"), str) else None,
+        ),
+        "agent_model_name": _first_non_empty(
+            agent_config.get("model_name"),
+            config_payload.get("model"),
+            result_payload.get("model"),
+            agent_env.get("BENCHFLOW_PROVIDER_MODEL"),
+            agent_env.get("ANTHROPIC_MODEL"),
+        ),
+        "agent_version": _first_non_empty(agent_info.get("version"), agent_kwargs.get("version")),
+        "environment_type": environment_type,
         "raw_reward": float(rewards.get("reward", raw_reward) or raw_reward or 0.0),
         "started_at": result_payload.get("started_at"),
         "finished_at": result_payload.get("finished_at"),
-        "exception_info": result_payload.get("exception_info"),
+        "exception_info": result_payload.get("exception_info") or result_payload.get("error"),
     }
 
 
@@ -1297,10 +1340,210 @@ def _parse_gemini_cli_text_trace(
     return steps
 
 
+def _render_acp_content_blocks(content: Any, *, max_chars: int) -> list[str]:
+    if not isinstance(content, list):
+        rendered = _sanitize_multiline(content, max_chars=max_chars)
+        return [] if rendered == "NONE" else [rendered]
+
+    rendered_blocks: list[str] = []
+    for block in content:
+        if not isinstance(block, dict):
+            text = _sanitize_multiline(block, max_chars=max_chars)
+        elif block.get("type") == "content":
+            inner = block.get("content")
+            if isinstance(inner, dict):
+                inner_type = str(inner.get("type") or "content")
+                if inner_type == "text":
+                    text = _sanitize_multiline(inner.get("text"), max_chars=max_chars)
+                else:
+                    text = f"{inner_type}: {_sanitize_multiline(inner, max_chars=max_chars)}"
+            else:
+                text = _sanitize_multiline(inner, max_chars=max_chars)
+        elif block.get("type") == "diff":
+            path = str(block.get("path") or "UNKNOWN")
+            new_text = block.get("newText")
+            old_text = block.get("oldText")
+            if new_text is not None:
+                text = f"diff[{path}] new={_sanitize_multiline(new_text, max_chars=max_chars)}"
+            elif old_text is not None:
+                text = f"diff[{path}] old={_sanitize_multiline(old_text, max_chars=max_chars)}"
+            else:
+                text = f"diff[{path}]"
+        else:
+            block_type = str(block.get("type") or "content")
+            text = f"{block_type}: {_sanitize_multiline(block, max_chars=max_chars)}"
+        if text != "NONE":
+            rendered_blocks.append(text)
+    return rendered_blocks
+
+
+def _render_acp_content(content: Any, *, max_chars: int) -> str:
+    blocks = _render_acp_content_blocks(content, max_chars=max_chars)
+    if not blocks:
+        return "NONE"
+    return _sanitize_multiline("\n".join(blocks), max_chars=max_chars)
+
+
+def _acp_tool_name(event: dict[str, Any]) -> str:
+    kind = str(event.get("kind") or "").strip().lower()
+    title = str(event.get("title") or "").strip().lower()
+    if kind == "execute" or title == "terminal":
+        return _normalize_tool_name("bash")
+    if kind == "read" or title.startswith("read"):
+        return _normalize_tool_name("read_file")
+    if kind == "edit" and title == "write":
+        return _normalize_tool_name("write_file")
+    if title == "toolsearch":
+        return "tool_search"
+    if title == "skill":
+        return "skill"
+    return _normalize_tool_name(kind or title or "tool_call")
+
+
+def _render_acp_history_line(event: dict[str, Any], *, max_chars: int) -> str:
+    event_type = str(event.get("type") or "unknown")
+    if event_type == "tool_call":
+        label = _acp_tool_name(event)
+        title = _first_non_empty(event.get("title"), event.get("kind"), label)
+        content = _render_acp_content(event.get("content"), max_chars=max_chars)
+        return f"tool[{label}] {title}: {content}"
+    if event_type == "agent_message":
+        return f"assistant: {_compact_text(event.get('text'), max_chars=max_chars)}"
+    return f"{event_type}: {_compact_text(event, max_chars=max_chars)}"
+
+
+def _build_acp_context(
+    *,
+    base_metadata: dict[str, Any],
+    task_id: str,
+    history: list[dict[str, Any]],
+    history_window: int,
+    step_index: int,
+    max_chars: int,
+) -> str:
+    lines = [
+        "dataset=SkillsBench",
+        f"task_id={task_id}",
+        f"trial_name={base_metadata.get('trial_name')}",
+        f"condition_dir={base_metadata.get('condition_dir')}",
+        f"agent_name={base_metadata.get('agent_name')}",
+        f"agent_model_name={base_metadata.get('agent_model_name')}",
+        f"trace_format={base_metadata.get('trace_format')}",
+        f"step_index={step_index}",
+        "acp_history=",
+    ]
+    recent_history = history[-history_window:] if history_window > 0 else history
+    if recent_history:
+        lines.extend(_render_acp_history_line(event, max_chars=240) for event in recent_history)
+    else:
+        lines.append("NONE")
+    context = "\n".join(lines)
+    return context if len(context) <= max_chars else context[: max_chars - 16] + "...<truncated>"
+
+
+def _parse_acp_trace(
+    trace_path: Path,
+    *,
+    base_metadata: dict[str, Any],
+    task_id: str,
+    history_window: int,
+    max_action_chars: int,
+    max_result_chars: int,
+    max_context_chars: int,
+) -> list[dict[str, Any]]:
+    steps: list[dict[str, Any]] = []
+    history: list[dict[str, Any]] = []
+    with trace_path.open("r", encoding="utf-8", errors="replace") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            event = json.loads(line)
+            event_type = str(event.get("type") or "")
+            context = _build_acp_context(
+                base_metadata=base_metadata,
+                task_id=task_id,
+                history=history,
+                history_window=history_window,
+                step_index=len(steps) + 1,
+                max_chars=max_context_chars,
+            )
+
+            if event_type == "tool_call":
+                content_blocks = _render_acp_content_blocks(event.get("content"), max_chars=max_result_chars)
+                first_block = content_blocks[0] if content_blocks else "NONE"
+                title = _first_non_empty(event.get("title"), event.get("kind"), "tool_call")
+                action_text = title if first_block == "NONE" else f"{title}: {first_block}"
+                status_value = str(event.get("status") or "").strip().lower()
+                status = (
+                    "tool_error"
+                    if status_value and status_value not in {"completed", "ok", "success", "succeeded"}
+                    else "ok"
+                )
+                steps.append(
+                    {
+                        "context": context,
+                        "action_text": _compact_text(action_text, max_chars=max_action_chars),
+                        "tool_name": _acp_tool_name(event),
+                        "tool_args": {
+                            "tool_call_id": event.get("tool_call_id"),
+                            "kind": event.get("kind"),
+                            "title": event.get("title"),
+                            "status": event.get("status"),
+                        },
+                        "result_text": _render_acp_content(event.get("content"), max_chars=max_result_chars),
+                        "status": status,
+                        "source_raw_text": _source_raw_text(
+                            base_metadata=base_metadata,
+                            task_id=task_id,
+                            step_index=len(steps) + 1,
+                            raw_fragment={
+                                "history": _source_raw_history_tail(history),
+                                "acp_event": event,
+                            },
+                        ),
+                    }
+                )
+                history.append(event)
+                continue
+
+            if event_type == "agent_message":
+                action_text = _compact_text(event.get("text"), max_chars=max_action_chars)
+                if action_text != "NONE":
+                    steps.append(
+                        {
+                            "context": context,
+                            "action_text": action_text,
+                            "tool_name": "respond",
+                            "tool_args": {},
+                            "result_text": "NONE",
+                            "status": "ok",
+                            "source_raw_text": _source_raw_text(
+                                base_metadata=base_metadata,
+                                task_id=task_id,
+                                step_index=len(steps) + 1,
+                                raw_fragment={
+                                    "history": _source_raw_history_tail(history),
+                                    "acp_event": event,
+                                },
+                            ),
+                        }
+                    )
+                history.append(event)
+                continue
+
+            history.append(event)
+
+    return steps
+
+
 def _detect_trace(trial_dir: Path) -> tuple[str, Path] | None:
     project_jsonls = sorted(trial_dir.glob("agent/sessions/projects/*/*.jsonl"))
     if project_jsonls:
         return ("claude_session_jsonl", project_jsonls[0])
+    acp_trajectory = trial_dir / "trajectory" / "acp_trajectory.jsonl"
+    if acp_trajectory.exists():
+        return ("acp_trajectory_jsonl", acp_trajectory)
     claude_txt = trial_dir / "agent" / "claude-code.txt"
     if claude_txt.exists():
         return ("claude_code_txt", claude_txt)
@@ -1337,8 +1580,7 @@ def _parse_trial(
         raise ValueError(f"No supported structured trace found under {trial_dir}")
 
     trace_format, trace_path = trace_spec
-    verifier_result = _as_dict(result_payload.get("verifier_result"))
-    rewards = _as_dict(verifier_result.get("rewards"))
+    rewards = _result_rewards(result_payload)
     raw_reward = float(rewards.get("reward", 0.0) or 0.0)
     final_success = raw_reward >= 1.0 - 1e-9
     task_id = _task_id_from_payload(result_payload, config_payload)
@@ -1353,6 +1595,16 @@ def _parse_trial(
 
     if trace_format in {"claude_session_jsonl", "claude_code_txt"}:
         steps = _parse_claude_trace(
+            trace_path,
+            base_metadata=base_metadata,
+            task_id=task_id,
+            history_window=history_window,
+            max_action_chars=max_action_chars,
+            max_result_chars=max_result_chars,
+            max_context_chars=max_context_chars,
+        )
+    elif trace_format == "acp_trajectory_jsonl":
+        steps = _parse_acp_trace(
             trace_path,
             base_metadata=base_metadata,
             task_id=task_id,
