@@ -1,0 +1,65 @@
+# Data and large local artifacts
+/data/external/
+/data/interim/
+
+# Experiment outputs and logs
+/logs/
+/outputs/
+*.ckpt
+*.pt
+*.pth
+*.safetensors
+
+# Python environments and caches
+/.venv/
+/.pytest_cache/
+/.mypy_cache/
+/.ruff_cache/
+**/__pycache__/
+*.py[cod]
+
+# Coverage and test artifacts
+.coverage
+.coverage.*
+/htmlcov/
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.dvi
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.nav
+*.out
+*.run.xml
+*.snm
+*.synctex.gz
+*.toc
+*.vrb
+*.xdv
+texput.log
+
+# Local notebooks and scratch files
+*.ipynb_checkpoints
+*.tmp
+*.swp
+*.swo
+
+# Editor and OS metadata
+.DS_Store
+Thumbs.db
+.idea/
+*.code-workspace
+.vscode/
+.aris/
+.claude/
+.codex/
+.gemini/
+tools/
+/*.query_bundle.pt
+/webarena*_dfa*.png
