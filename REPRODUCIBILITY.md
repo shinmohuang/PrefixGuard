@@ -2,9 +2,11 @@
 
 ## Artifact Goal
 
-This branch is a minimal anonymous review artifact. It is designed to let a
-reviewer execute the core monitor-symbolization code path without private raw
-datasets, local experiment queues, generated figures, or internal notes.
+This branch is an anonymous review artifact. It is designed to let a
+reviewer execute the core monitor-symbolization code path and, after staging
+the real raw datasets described in `DATASETS.md`, rerun the main public monitor
+experiments without private experiment queues, generated figures, or internal
+notes.
 
 ## Public Data
 
@@ -72,12 +74,25 @@ python scripts/evaluate_differentiable_automaton.py \
 ```
 
 ```bash
+python scripts/reproduce_main_experiments.py --stage all --dry-run
+```
+
+```bash
+python scripts/reproduce_main_experiments.py --stage prepare
+python scripts/verify_dataset_artifacts.py
+python scripts/reproduce_main_experiments.py --stage train --device cuda
+python scripts/reproduce_main_experiments.py --stage eval --device cuda
+python scripts/reproduce_main_experiments.py --stage summarize
+```
+
+```bash
 python -m pytest \
   tests/test_dfa_backends.py \
   tests/test_legacy_reproduction.py \
   tests/test_public_differentiable_monitor.py \
   tests/test_differentiable_automaton_sanity_cli.py \
-  tests/test_public_train_eval_scripts.py
+  tests/test_public_train_eval_scripts.py \
+  tests/test_public_main_reproduction.py
 ```
 
 The sanity script is intentionally documented as a direct-soft monitor smoke
@@ -98,3 +113,20 @@ The public branch intentionally excludes:
 These exclusions do not change the code-level protocol in the included tests or
 toy sanity run. They only remove data and artifacts that are not suitable for an
 anonymous public review repository.
+
+## Real-Data Main Monitor Contract
+
+`configs/main_experiments.json` is the public manifest for the main monitor
+reproduction package. It records the four real benchmark artifacts, expected
+SHA-256 checksums, seeds, split protocols, model head, and output naming scheme.
+
+The manifest-backed driver runs:
+
+- `prepare`: rebuild canonical source-raw split artifacts from staged raw data;
+- `verify`: check row counts and SHA-256 values;
+- `train`: train each configured seed;
+- `eval`: run locked test split evaluation from each checkpoint;
+- `summarize`: write JSON/CSV summaries under `outputs/analysis/`.
+
+The public manifest covers the core differentiable-monitor experiments only. It
+does not attempt to reproduce API-based LLM judge baselines.

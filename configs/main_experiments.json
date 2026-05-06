@@ -1,0 +1,148 @@
+{
+  "description": "Anonymous-review main monitor reproduction manifest. This manifest covers the core differentiable monitor experiments on the four real benchmarks. It excludes M6/native adapters and API-based LLM judge baselines.",
+  "datasets": {
+    "webarena": {
+      "artifact": "data/interim/webarena/source_raw/execution_union_v1_v2_source_raw_labeled_split.jsonl",
+      "prepare_only": "webarena",
+      "rows": 4430,
+      "sha256": "756ac7d4e9b5797e69bea90e5ffd27ca85ebd1752b5a74f566eb050e4dcf3819"
+    },
+    "tau2": {
+      "artifact": "data/interim/tau2_bench/source_raw/results_final_source_raw_outer_train_val_test.jsonl",
+      "prepare_only": "tau2",
+      "rows": 10832,
+      "sha256": "002c1a34d290b03c916b354c7b839a8ffefc4c90838f647c711e0689a97c3002"
+    },
+    "terminalbench": {
+      "artifact": "data/interim/terminalbench/source_raw/terminalbench_trajectories_source_raw_traj_split_manifest.jsonl",
+      "prepare_only": "terminalbench",
+      "rows": 34397,
+      "sha256": "bdb787c4daff4f76719d509da59865170940e98f027c0fa450c0a6f00aab0058"
+    },
+    "skillsbench": {
+      "artifact": "data/interim/skillsbench/source_raw/full_repo_main_traces_source_raw_split_manifest.jsonl",
+      "prepare_only": "skillsbench",
+      "rows": 10951,
+      "sha256": "a08b8dccded2fb65f0bb822fad0c24c360fdc0bc60358f3367a66be1cfdd5547"
+    }
+  },
+  "runs": [
+    {
+      "id": "SR1",
+      "family": "webarena",
+      "method": "strict_source_raw_gru",
+      "seeds": [1, 2, 3],
+      "output_template": "outputs/experiments/SR1_webarena_source_raw_gru_tfidf_k16_q16_e24_h3_seed{seed}",
+      "num_symbols": 16,
+      "q_max": 16,
+      "epochs": 24,
+      "horizon": 3,
+      "train_args": [
+        "--warning-model-type", "symbol-gru",
+        "--selection-metric", "direct-soft",
+        "--derive-train-fit-cal",
+        "--encoder-type", "tfidf",
+        "--representation-mode", "source-raw",
+        "--step-view-text-mode", "full",
+        "--batch-size", "64",
+        "--dfa-backend", "aalpy-rpni"
+      ],
+      "eval_args": [
+        "--representation-mode", "source-raw",
+        "--dfa-backend", "aalpy-rpni"
+      ]
+    },
+    {
+      "id": "SR2",
+      "family": "tau2",
+      "method": "strict_source_raw_gru",
+      "seeds": [13, 42, 123],
+      "output_template": "outputs/experiments/SR2_tau2_source_raw_gru_tfidf_k16_q16_e24_h3_seed{seed}",
+      "num_symbols": 16,
+      "q_max": 16,
+      "epochs": 24,
+      "horizon": 3,
+      "train_args": [
+        "--warning-model-type", "symbol-gru",
+        "--selection-metric", "direct-soft",
+        "--fit-split", "train",
+        "--cal-split", "val",
+        "--val-split", "val",
+        "--no-derive-train-fit-cal",
+        "--encoder-type", "tfidf",
+        "--representation-mode", "source-raw",
+        "--step-view-frontend", "tau2bench",
+        "--step-view-text-mode", "full",
+        "--batch-size", "64",
+        "--dfa-backend", "aalpy-rpni"
+      ],
+      "eval_args": [
+        "--representation-mode", "source-raw",
+        "--step-view-frontend", "tau2bench",
+        "--dfa-backend", "aalpy-rpni"
+      ]
+    },
+    {
+      "id": "SR3",
+      "family": "skillsbench",
+      "method": "strict_source_raw_gru",
+      "seeds": [13, 42, 7],
+      "output_template": "outputs/experiments/SR3_skillsbench_source_raw_gru_tfidf_tasksc_k16_q16_e24_h3_seed{seed}",
+      "num_symbols": 16,
+      "q_max": 16,
+      "epochs": 24,
+      "horizon": 3,
+      "train_args": [
+        "--warning-model-type", "symbol-gru",
+        "--selection-metric", "direct-soft",
+        "--fit-split", "train",
+        "--cal-split", "val",
+        "--val-split", "val",
+        "--no-derive-train-fit-cal",
+        "--encoder-type", "tfidf",
+        "--representation-mode", "source-raw",
+        "--step-view-frontend", "skillsbench",
+        "--step-view-text-mode", "full",
+        "--tfidf-metadata-sidechannel", "skillsbench-task-v1",
+        "--batch-size", "64",
+        "--dfa-backend", "aalpy-rpni"
+      ],
+      "eval_args": [
+        "--representation-mode", "source-raw",
+        "--step-view-frontend", "skillsbench",
+        "--tfidf-metadata-sidechannel", "skillsbench-task-v1",
+        "--dfa-backend", "aalpy-rpni"
+      ]
+    },
+    {
+      "id": "SR4",
+      "family": "terminalbench",
+      "method": "strict_source_raw_gru",
+      "seeds": [7, 42, 123],
+      "output_template": "outputs/experiments/SR4_terminalbench_source_raw_gru_tfidf_k32_q32_e24_h3_seed{seed}",
+      "num_symbols": 32,
+      "q_max": 32,
+      "epochs": 24,
+      "horizon": 3,
+      "train_args": [
+        "--warning-model-type", "symbol-gru",
+        "--selection-metric", "direct-soft",
+        "--fit-split", "fit",
+        "--cal-split", "cal",
+        "--val-split", "val",
+        "--no-derive-train-fit-cal",
+        "--encoder-type", "tfidf",
+        "--representation-mode", "source-raw",
+        "--step-view-frontend", "terminalbench",
+        "--step-view-text-mode", "full",
+        "--batch-size", "64",
+        "--dfa-backend", "aalpy-rpni"
+      ],
+      "eval_args": [
+        "--representation-mode", "source-raw",
+        "--step-view-frontend", "terminalbench",
+        "--dfa-backend", "aalpy-rpni"
+      ]
+    }
+  ]
+}

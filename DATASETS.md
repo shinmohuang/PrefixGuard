@@ -3,7 +3,7 @@
 This anonymous review branch intentionally does not redistribute real benchmark
 traces. The excluded datasets are large, externally licensed, or locally
 mirrored research artifacts. This file records the reconstruction contract for
-the real datasets used outside the minimal public branch.
+the real datasets used by the public reproduction branch.
 
 The public branch includes only:
 
@@ -17,22 +17,32 @@ toy-data path.
 
 ## General Layout
 
-The full research tree uses this data convention:
+The public reproduction tree uses this data convention:
 
 ```text
 data/external/<dataset>/...   # downloaded or locally staged raw data
 data/interim/<dataset>/...    # imported JSONL files and split manifests
 ```
 
-The minimal anonymous branch preserves the package code and toy data only. The
-preprocessing scripts listed below are from the full research tree and are not
-shipped in this stripped branch unless separately restored by the authors.
+The anonymous branch preserves the package code, toy data, core import scripts,
+canonical preprocessing scripts, and the real-data experiment manifest. The raw
+real datasets themselves are not redistributed.
 
 To verify a reconstructed artifact:
 
 ```bash
-sha256sum <expected-file>
-wc -l <expected-file>
+python scripts/verify_dataset_artifacts.py
+```
+
+The main monitor experiment manifest is `configs/main_experiments.json`. After
+raw data are staged, the end-to-end public driver is:
+
+```bash
+python scripts/reproduce_main_experiments.py --stage prepare
+python scripts/verify_dataset_artifacts.py
+python scripts/reproduce_main_experiments.py --stage train --device cuda
+python scripts/reproduce_main_experiments.py --stage eval --device cuda
+python scripts/reproduce_main_experiments.py --stage summarize
 ```
 
 ## WebArena
@@ -66,7 +76,7 @@ data/external/webarena/execution_v2/112023_release_v2/v2_919_gpt4_8k_cot.zip
 data/external/webarena/execution_v2/112023_release_v2/v2_919_text_bison_001_cot.zip
 ```
 
-Preprocessing command in the full tree:
+Preprocessing command:
 
 ```bash
 python scripts/prepare_source_raw_baseline_datasets.py --only webarena
@@ -90,15 +100,15 @@ sha256: 756ac7d4e9b5797e69bea90e5ffd27ca85ebd1752b5a74f566eb050e4dcf3819
 Source:
 
 - Code and benchmark definitions: `https://github.com/sierra-research/tau2-bench`
-- The full tree stages tau2-bench run result JSON files under
+- The reproduction tree stages tau2-bench run result JSON files under
   `data/external/tau2_bench/results/final/`.
 
 Download and staging:
 
 Clone or download the official tau2-bench repository for benchmark definitions.
 Generate or obtain the run result JSON files for the evaluated agents, then
-place them under the path below. The full-tree importer reads local JSON files
-and does not contact the upstream repository.
+place them under the path below. The importer reads local JSON files and does
+not contact the upstream repository.
 
 Expected raw inputs:
 
@@ -106,7 +116,7 @@ Expected raw inputs:
 data/external/tau2_bench/results/final/*.json
 ```
 
-Preprocessing command in the full tree:
+Preprocessing command:
 
 ```bash
 python scripts/prepare_source_raw_baseline_datasets.py --only tau2
@@ -139,7 +149,7 @@ data/external/terminalbench/terminalbench-trajectories/README.md
 data/external/terminalbench/terminalbench-trajectories/data/*.parquet
 ```
 
-Download command in the full tree:
+Download/import command:
 
 ```bash
 python scripts/import_terminalbench_trajectories.py \
@@ -149,7 +159,7 @@ python scripts/import_terminalbench_trajectories.py \
   --output-summary data/interim/terminalbench/terminalbench_trajectories_full_summary.json
 ```
 
-Source-raw manifest command in the full tree:
+Source-raw manifest command:
 
 ```bash
 python scripts/prepare_source_raw_baseline_datasets.py --only terminalbench
@@ -186,7 +196,7 @@ data/external/skillsbench/skillsbench-trajectories/**/result.json
 data/external/skillsbench/skillsbench-trajectories/**/config.json
 ```
 
-Import command in the full tree:
+Import command:
 
 ```bash
 python scripts/import_skillsbench_traces.py \
@@ -195,19 +205,30 @@ python scripts/import_skillsbench_traces.py \
   --output-summary data/interim/skillsbench/full_repo_main_traces_summary.json
 ```
 
-Clean-monitor and source-raw manifest commands in the full tree:
+Canonical split, clean-monitor, and source-raw manifest commands:
 
 ```bash
+python scripts/create_task_grouped_split.py \
+  --input data/interim/skillsbench/full_repo_main_traces.jsonl \
+  --output data/interim/skillsbench/full_repo_main_traces_split.jsonl \
+  --summary-output data/interim/skillsbench/full_repo_main_traces_split_summary.json \
+  --protocol-mode outer-train-val-test \
+  --seed 13 \
+  --val-ratio 0.1 \
+  --test-ratio 0.1
+
 python scripts/build_skillsbench_clean_monitor.py \
-  --input-jsonl data/interim/skillsbench/full_repo_main_traces.jsonl \
-  --output-jsonl data/interim/skillsbench/full_repo_main_traces_clean_monitor.jsonl \
-  --summary-json data/interim/skillsbench/full_repo_main_traces_clean_monitor_summary.json
+  --input-jsonl data/interim/skillsbench/full_repo_main_traces_split.jsonl \
+  --output-jsonl data/interim/skillsbench/full_repo_main_traces_split_clean_monitor.jsonl \
+  --summary-json data/interim/skillsbench/full_repo_main_traces_split_clean_monitor_summary.json
 
 python scripts/prepare_source_raw_baseline_datasets.py --only skillsbench
 ```
 
-The source-raw command consumes the canonical SkillsBench split JSONL in the
-full tree and writes a manifest that points back to raw trial directories.
+The source-raw command consumes the canonical SkillsBench split JSONL and writes
+a manifest that points back to raw trial directories. If the split JSONL is
+missing but `full_repo_main_traces.jsonl` exists, the prepare script rebuilds
+the split using the command above.
 
 Expected artifact:
 
@@ -224,10 +245,15 @@ adapter artifacts or task-only adapter datasets. They are excluded from the
 public reproduction contract and should not be treated as required reviewer
 inputs for this branch.
 
+The package also does not reproduce API-based LLM judge baselines. Those require
+external model APIs and cost-limited sampled prefix sets, so they are outside
+the anonymous code/data reproduction contract.
+
 ## Integrity Notes
 
-- The checksums above are SHA-256 values of the canonical local artifacts used
-  by the authors' full research tree.
+- The checksums above are SHA-256 values of the canonical artifacts used by the
+  authors' full research tree and expected from this public reconstruction
+  pipeline.
 - If a data provider updates an upstream archive or parquet shard, checksums can
   differ even when the preprocessing command is unchanged. In that case, record
   the provider version, file list, and new SHA-256 before comparing results.
