@@ -57,11 +57,27 @@ python scripts/run_differentiable_automaton_sanity.py \
 ```
 
 ```bash
+python scripts/train_differentiable_automaton.py \
+  --dataset data/toy/trajectories.jsonl \
+  --epochs 1 \
+  --output-dir outputs/training_public/differentiable_automaton
+```
+
+```bash
+python scripts/evaluate_differentiable_automaton.py \
+  --dataset data/toy/trajectories.jsonl \
+  --checkpoint outputs/training_public/differentiable_automaton/best_checkpoint.pt \
+  --eval-split test \
+  --output outputs/evaluation_public/differentiable_automaton_test.json
+```
+
+```bash
 python -m pytest \
   tests/test_dfa_backends.py \
   tests/test_legacy_reproduction.py \
   tests/test_public_differentiable_monitor.py \
-  tests/test_differentiable_automaton_sanity_cli.py
+  tests/test_differentiable_automaton_sanity_cli.py \
+  tests/test_public_train_eval_scripts.py
 ```
 
 The sanity script is intentionally documented as a direct-soft monitor smoke

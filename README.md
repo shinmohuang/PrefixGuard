@@ -12,6 +12,8 @@ calibration protocol, and differentiable monitor components.
 Included:
 
 - `src/monitor_symbolization/`: package source.
+- `scripts/train_differentiable_automaton.py`: split-aware training entry point.
+- `scripts/evaluate_differentiable_automaton.py`: checkpoint evaluation entry point.
 - `scripts/run_differentiable_automaton_sanity.py`: CPU sanity experiment.
 - `data/toy/trajectories.jsonl`: small synthetic train/val/test dataset.
 - `DATASETS.md`: reconstruction notes for excluded real benchmark datasets.
@@ -72,6 +74,25 @@ Expected output files:
 - `outputs/sanity_public/sanity_results.json`
 - `outputs/sanity_public/differentiable_automaton/`
 
+Train the differentiable monitor on the included toy data:
+
+```bash
+python scripts/train_differentiable_automaton.py \
+  --dataset data/toy/trajectories.jsonl \
+  --epochs 1 \
+  --output-dir outputs/training_public/differentiable_automaton
+```
+
+Evaluate the resulting checkpoint on the toy test split:
+
+```bash
+python scripts/evaluate_differentiable_automaton.py \
+  --dataset data/toy/trajectories.jsonl \
+  --checkpoint outputs/training_public/differentiable_automaton/best_checkpoint.pt \
+  --eval-split test \
+  --output outputs/evaluation_public/differentiable_automaton_test.json
+```
+
 Run the public regression subset:
 
 ```bash
@@ -79,7 +100,8 @@ python -m pytest \
   tests/test_dfa_backends.py \
   tests/test_legacy_reproduction.py \
   tests/test_public_differentiable_monitor.py \
-  tests/test_differentiable_automaton_sanity_cli.py
+  tests/test_differentiable_automaton_sanity_cli.py \
+  tests/test_public_train_eval_scripts.py
 ```
 
 ## Reproducibility Notes
@@ -90,6 +112,10 @@ The script trains on `train`, selects/evaluates on `val`, and writes all outputs
 under the requested output directory. The toy sanity run validates the direct
 soft monitor path. Exact DFA backend behavior is covered separately by
 `tests/test_dfa_backends.py`.
+
+The public train/evaluate scripts default to the included toy dataset and CPU
+execution. For reconstructed real datasets, pass the dataset path from
+`DATASETS.md` and the desired split protocol explicitly.
 
 See `REPRODUCIBILITY.md` for the exact public artifact contract and
 `DATASETS.md` for real-dataset reconstruction notes.
