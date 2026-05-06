@@ -14,6 +14,7 @@ Included:
 - `src/monitor_symbolization/`: package source.
 - `scripts/run_differentiable_automaton_sanity.py`: CPU sanity experiment.
 - `data/toy/trajectories.jsonl`: small synthetic train/val/test dataset.
+- `DATASETS.md`: reconstruction notes for excluded real benchmark datasets.
 - `tests/`: selected self-contained regression tests.
 - `pyproject.toml` and `uv.lock`: pinned environment metadata.
 
@@ -25,7 +26,8 @@ Excluded:
 
 The toy run is intended to verify the implementation path and reproducibility
 mechanics. It is not a substitute for the full benchmark datasets used in the
-paper.
+paper. See `DATASETS.md` for the source, preprocessing, checksum, and expected
+path contract for excluded real datasets.
 
 ## Setup
 
@@ -89,4 +91,5 @@ under the requested output directory. The toy sanity run validates the direct
 soft monitor path. Exact DFA backend behavior is covered separately by
 `tests/test_dfa_backends.py`.
 
-See `REPRODUCIBILITY.md` for the exact public artifact contract.
+See `REPRODUCIBILITY.md` for the exact public artifact contract and
+`DATASETS.md` for real-dataset reconstruction notes.

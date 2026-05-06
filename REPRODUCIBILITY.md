@@ -12,6 +12,9 @@ The repository includes one synthetic dataset:
 
 - `data/toy/trajectories.jsonl`
 
+`DATASETS.md` records the source, preprocessing, checksum, and expected path
+contract for the excluded real benchmark datasets.
+
 Each row is a trajectory with:
 
 - `trajectory_id`
@@ -70,6 +73,7 @@ which use hand-constructed symbol sequences rather than learned toy symbols.
 The public branch intentionally excludes:
 
 - raw WebArena, Tau2Bench, TerminalBench, and SkillsBench traces;
+- extra M6/native benchmark adapters and task-only adapter datasets;
 - downloaded external data;
 - local caches and imported intermediate datasets;
 - training logs, scheduler queues, checkpoints, and generated outputs;
