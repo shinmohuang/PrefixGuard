@@ -1,5 +1,5 @@
 {
-  "description": "Anonymous-review main monitor reproduction manifest. This manifest covers the core differentiable monitor experiments on the four real benchmarks. It excludes M6/native adapters and API-based LLM judge baselines.",
+  "description": "Public main monitor reproduction manifest. This manifest covers the core differentiable monitor experiments on the four real benchmarks. It excludes M6/native adapters and API-based LLM judge baselines.",
   "datasets": {
     "webarena": {
       "artifact": "data/interim/webarena/source_raw/execution_union_v1_v2_source_raw_labeled_split.jsonl",

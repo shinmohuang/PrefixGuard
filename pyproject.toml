@@ -3,8 +3,9 @@ name = "monitor-symbolization"
 version = "0.1.0"
 description = "Monitor-aware event symbolization experiments for formal monitoring"
 authors = [
-    { name = "Anonymous Authors" }
+    { name = "PrefixGuard Authors" }
 ]
+license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
     "aalpy==1.5.2",

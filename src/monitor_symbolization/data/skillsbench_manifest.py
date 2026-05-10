@@ -15,7 +15,7 @@ SKILLSBENCH_IMPORTER_PATH = REPO_ROOT / "scripts" / "import_skillsbench_traces.p
 @lru_cache(maxsize=1)
 def _skillsbench_importer() -> ModuleType:
     spec = importlib.util.spec_from_file_location(
-        "_dialog2automata_skillsbench_importer",
+        "_prefixguard_skillsbench_importer",
         SKILLSBENCH_IMPORTER_PATH,
     )
     if spec is None or spec.loader is None:

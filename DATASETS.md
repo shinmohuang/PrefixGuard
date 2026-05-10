@@ -1,6 +1,6 @@
 # Dataset Reconstruction Notes
 
-This anonymous review branch intentionally does not redistribute real benchmark
+This public release branch intentionally does not redistribute real benchmark
 traces. The excluded datasets are large, externally licensed, or locally
 mirrored research artifacts. This file records the reconstruction contract for
 the real datasets used by the public reproduction branch.
@@ -24,9 +24,20 @@ data/external/<dataset>/...   # downloaded or locally staged raw data
 data/interim/<dataset>/...    # imported JSONL files and split manifests
 ```
 
-The anonymous branch preserves the package code, toy data, core import scripts,
+The public branch preserves the package code, toy data, core import scripts,
 canonical preprocessing scripts, and the real-data experiment manifest. The raw
 real datasets themselves are not redistributed.
+
+The preferred reconstruction entry point is:
+
+```bash
+python scripts/bootstrap_public_data.py --families all --after-prepare dry-run
+```
+
+This command downloads/stages public raw sources, rebuilds the corresponding
+`data/interim/<dataset>` artifacts, verifies them, and prints the train/eval
+commands from `configs/main_experiments.json`. Use `--skip-download` to reuse an
+existing `data/external/` mirror.
 
 Download tooling is part of the project dependencies:
 
@@ -36,14 +47,15 @@ python -m gdown --help
 hf download --help
 ```
 
-Direct download verification was last checked on 2026-05-06:
+Direct download verification was last checked on 2026-05-10:
 
 - WebArena execution trace folders are linked from the official WebArena
   resources file and can be downloaded with `gdown --folder`.
-- `HuggingFaceH4/tau2-bench-data` can be downloaded from Hugging Face at
-  revision `60e37c7a19672769a6034c45a5c8b36e7cd3768b`, but it contains
-  benchmark/domain data only. It does not contain the run-result trajectory
-  JSON files consumed by this repository's tau2 importer.
+- tau2 completed run-result JSON files are available in the public
+  `sierra-research/tau2-bench` repository under `data/tau2/results/final/`.
+  The optional `HuggingFaceH4/tau2-bench-data` download contains benchmark and
+  domain definitions, but the monitor importer consumes the GitHub
+  `results/final/*.json` files.
 - `benchflow/skillsbench-trajectories-apr2026` can be downloaded from Hugging
   Face at revision `841dfc7d248bb0b1cd35fa65bb993a1eba0d1d2f`. Its public
   ACP trajectory format is supported by this repository's SkillsBench importer.
@@ -77,6 +89,14 @@ Source:
   trace archives staged under `data/external/webarena/`.
 
 Download and staging:
+
+Preferred command:
+
+```bash
+python scripts/bootstrap_public_data.py --families webarena --after-prepare none
+```
+
+Manual equivalent:
 
 The official WebArena resources file links the v1 and v2 execution trace
 Google Drive folders. Download them directly with `gdown`:
@@ -139,14 +159,45 @@ sha256: 756ac7d4e9b5797e69bea90e5ffd27ca85ebd1752b5a74f566eb050e4dcf3819
 Source:
 
 - Code and benchmark definitions: `https://github.com/sierra-research/tau2-bench`
-- Direct-download benchmark/domain data:
+- Completed run-result JSON files used by this repository:
+  `https://github.com/sierra-research/tau2-bench/tree/main/data/tau2/results/final`
+- Optional benchmark/domain data:
   `https://huggingface.co/datasets/HuggingFaceH4/tau2-bench-data`
 - The reproduction tree stages tau2-bench run result JSON files under
   `data/external/tau2_bench/results/final/`.
 
 Download and staging:
 
-The official benchmark/domain data can be downloaded directly:
+Preferred command:
+
+```bash
+python scripts/bootstrap_public_data.py --families tau2 --after-prepare none
+```
+
+This downloads the public `data/tau2/results/final/*.json` files from the
+`sierra-research/tau2-bench` GitHub repository into
+`data/external/tau2_bench/results/final/`, then rebuilds the canonical
+`data/interim/tau2_bench/...` source-raw split.
+
+If you already have a local tau2 result bundle, stage it explicitly:
+
+```bash
+python scripts/bootstrap_public_data.py \
+  --families tau2 \
+  --tau2-results-dir /path/to/tau2-bench/data/tau2/results/final \
+  --after-prepare none
+```
+
+Manual equivalent:
+
+```bash
+mkdir -p data/external/tau2_bench/results/final
+# Download each JSON file from:
+# https://github.com/sierra-research/tau2-bench/tree/main/data/tau2/results/final
+```
+
+The optional benchmark/domain definitions can also be mirrored, but they are not
+the importer input for the monitor experiment:
 
 ```bash
 hf download HuggingFaceH4/tau2-bench-data \
@@ -154,28 +205,6 @@ hf download HuggingFaceH4/tau2-bench-data \
   --revision 60e37c7a19672769a6034c45a5c8b36e7cd3768b \
   --local-dir data/external/tau2_bench/tau2_data
 ```
-
-This is not sufficient for the main monitor experiment. The tau2 importer
-consumes completed tau2 evaluation outputs, not only benchmark definitions. The
-official tau2 documentation states that text evaluations write monolithic
-`results.json` files under `data/simulations/<run_name>/`. Generate or obtain
-those run-result JSON files for the evaluated agents, then place or symlink
-them under the path below:
-
-```bash
-mkdir -p data/external/tau2_bench/results/final
-cp /path/to/tau2-bench/data/simulations/<run_name>/results.json \
-  data/external/tau2_bench/results/final/<agent>_<domain>_<policy>_<user>.json
-```
-
-No public static download was verified for the exact
-`data/external/tau2_bench/results/final/*.json` bundle that produces the
-checksum below. To make the tau2 main experiment directly reproducible from
-downloads alone, this bundle must be published as an anonymous artifact, or the
-anonymous package must include the exact tau2 run commands, model/API settings,
-seeds, and generated `results.json` files. Substituting third-party tau2
-trajectory datasets changes the scientific input and must be treated as a new
-dataset/checksum.
 
 Expected raw inputs:
 
@@ -218,6 +247,14 @@ data/external/terminalbench/terminalbench-trajectories/data/*.parquet
 
 Download/import command:
 
+Preferred command:
+
+```bash
+python scripts/bootstrap_public_data.py --families terminalbench --after-prepare none
+```
+
+Manual equivalent:
+
 ```bash
 python scripts/import_terminalbench_trajectories.py \
   --repo-id yoonholee/terminalbench-trajectories \
@@ -259,6 +296,14 @@ Source:
   is supported by `scripts/import_skillsbench_traces.py`.
 
 Download and staging:
+
+Preferred command:
+
+```bash
+python scripts/bootstrap_public_data.py --families skillsbench --after-prepare none
+```
+
+Manual equivalent:
 
 ```bash
 hf download benchflow/skillsbench-trajectories-apr2026 \
@@ -332,14 +377,14 @@ main-experiment input.
 
 ## Explicitly Excluded Adapters
 
-The anonymous review package does not require the extra M6/native benchmark
+The public package does not require the extra M6/native benchmark
 adapter artifacts or task-only adapter datasets. They are excluded from the
 public reproduction contract and should not be treated as required reviewer
 inputs for this branch.
 
 The package also does not reproduce API-based LLM judge baselines. Those require
 external model APIs and cost-limited sampled prefix sets, so they are outside
-the anonymous code/data reproduction contract.
+the public code/data reproduction contract.
 
 ## Integrity Notes
 

@@ -2,7 +2,7 @@
 
 ## Artifact Goal
 
-This branch is an anonymous review artifact. It is designed to let a
+This branch is a public review artifact. It is designed to let a
 reviewer execute the core monitor-symbolization code path and, after staging
 the real raw datasets described in `DATASETS.md`, rerun the main public monitor
 experiments without private experiment queues, generated figures, or internal
@@ -78,6 +78,18 @@ python scripts/reproduce_main_experiments.py --stage all --dry-run
 ```
 
 ```bash
+python scripts/bootstrap_public_data.py --families all --after-prepare dry-run
+```
+
+```bash
+python scripts/bootstrap_public_data.py \
+  --families all \
+  --after-prepare all \
+  --device cuda \
+  --strict-verify
+```
+
+```bash
 python scripts/reproduce_main_experiments.py --stage prepare
 python scripts/verify_dataset_artifacts.py
 python scripts/reproduce_main_experiments.py --stage train --device cuda
@@ -111,14 +123,17 @@ The public branch intentionally excludes:
 - paper drafts, proof notes, refinement logs, and generated figures.
 
 These exclusions do not change the code-level protocol in the included tests or
-toy sanity run. They only remove data and artifacts that are not suitable for an
-anonymous public review repository.
+toy sanity run. They only remove data and artifacts that are not suitable for a
+public review repository.
 
 ## Real-Data Main Monitor Contract
 
 `configs/main_experiments.json` is the public manifest for the main monitor
 reproduction package. It records the four real benchmark artifacts, expected
 SHA-256 checksums, seeds, split protocols, model head, and output naming scheme.
+`scripts/bootstrap_public_data.py` is the recommended entry point for rebuilding
+`data/interim/<dataset>` from public upstream sources before running the
+manifest-backed driver.
 
 The manifest-backed driver runs:
 

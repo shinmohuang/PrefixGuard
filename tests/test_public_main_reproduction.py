@@ -58,6 +58,35 @@ def test_reproduce_main_dry_run_emits_train_and_eval_commands() -> None:
     assert any("evaluate_differentiable_automaton.py" in command for command in commands)
 
 
+def test_bootstrap_tau2_dry_run_uses_public_github_results() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/bootstrap_public_data.py",
+            "--families",
+            "tau2",
+            "--dry-run",
+            "--after-prepare",
+            "all",
+            "--no-verify",
+        ],
+        cwd=REPO_ROOT,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+
+    assert (
+        "https://github.com/sierra-research/tau2-bench/tree/main/data/tau2/results/final"
+        in result.stdout
+    )
+    assert "data/tau2/results/final?ref=main" in result.stdout
+    assert "scripts/reproduce_main_experiments.py" in result.stdout
+    assert '"train"' in result.stdout
+    assert '"eval"' in result.stdout
+    assert '"summarize"' in result.stdout
+
+
 def test_verify_dataset_artifacts_has_expected_checksums() -> None:
     module = _load_script_module("verify_dataset_artifacts.py")
     expected = module.expected_artifacts()
