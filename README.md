@@ -1,6 +1,5 @@
-[![arXiv](https://img.shields.io/badge/arXiv-2605.06455-b31b1b.svg)](https://arxiv.org/abs/2605.06455)
-
 # PrefixGuard
+[![arXiv](https://img.shields.io/badge/arXiv-2605.06455-b31b1b.svg)](https://arxiv.org/abs/2605.06455)
 
 PrefixGuard turns agent execution traces into online failure-warning monitors.
 Given step-by-step trajectories from a web, tool-use, terminal, or coding agent,
