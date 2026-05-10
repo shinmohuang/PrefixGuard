@@ -239,14 +239,25 @@ The main experiment manifest is
 ## Repository Layout
 
 ```text
-src/monitor_symbolization/        Python package source
-scripts/                          import, preprocessing, training, evaluation
-configs/main_experiments.json     benchmark experiment manifest
-scripts/bootstrap_public_data.py   one-command public data reconstruction
-data/toy/trajectories.jsonl       self-contained toy dataset
-tests/                            public regression tests
-DATASETS.md                       real-data reconstruction notes
-REPRODUCIBILITY.md                reproduction contract and caveats
+configs/
+  main_experiments.json           manifest for the public benchmark runs
+data/
+  toy/trajectories.jsonl          self-contained toy dataset for smoke tests
+scripts/
+  bootstrap_public_data.py        download/stage public benchmark data
+  import_*                        benchmark-specific raw trace importers
+  prepare_*                       canonical source-raw artifact builders
+  train_* / evaluate_*            monitor training and locked-test evaluation
+  reproduce_* / summarize_*       manifest-driven reproduction driver
+src/monitor_symbolization/
+  data/                           trajectory schema, StepView, dataset adapters
+  models/                         encoders, symbolizer, warning heads
+  monitor/                        DFA backends, calibration, evaluation helpers
+  training/                       differentiable monitor training loops
+  baselines/                      supervised prefix-risk baseline components
+tests/                            public regression and CLI smoke tests
+DATASETS.md                       real-data reconstruction contract
+REPRODUCIBILITY.md                validation commands and caveats
 ```
 
 ## Tests
