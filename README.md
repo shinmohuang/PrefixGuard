@@ -1,5 +1,9 @@
-# PrefixGuard
+# PrefixGuard: From LLM-Agent Traces to Online Failure-Warning Monitors
+
+[![Project Page](https://img.shields.io/badge/Project-Page-2d7dd2.svg)](https://shinmohuang.github.io/prefixguard_page/)
 [![arXiv](https://img.shields.io/badge/arXiv-2605.06455-b31b1b.svg)](https://arxiv.org/abs/2605.06455)
+
+**Authors:** Xinmiao Huang, Jinwei Hu, Rajarshi Roy, Changshun Wu, Yi Dong, and Xiaowei Huang.
 
 PrefixGuard turns agent execution traces into online failure-warning monitors.
 Given step-by-step trajectories from a web, tool-use, terminal, or coding agent,
